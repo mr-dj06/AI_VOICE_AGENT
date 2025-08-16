@@ -15,6 +15,8 @@ from typing import Dict, List
 
 from services.tts_murf import generate_tts_with_murf # type: ignore
 
+from fastapi import WebSocket
+
 # Load ENV & Configure APIs
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -227,3 +229,21 @@ async def chat_with_history(
 @app.get("/agent/history/{session_id}")
 async def get_history(session_id: str):
     return chat_history.get(session_id, [])
+
+# websocket endpoint
+@app.websocket("/ws")
+async def ws_endpoint(websocket:WebSocket):
+    """
+    Simple WebSocket Echo Server
+    1. Accepts connection
+    2. Receives message from client
+    3. Echoes message back
+    """
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            print(f"📩Received: {data}")
+            await websocket.send_text(f"Echo: {data}")
+    except Exception as e:
+        print("⚠️ WebSocket connection closed:", e)
