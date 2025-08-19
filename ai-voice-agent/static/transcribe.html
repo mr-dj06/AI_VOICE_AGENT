@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Live Transcription (AssemblyAI v3)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4361ee;
+      --primary-dark: #3a56d4;
+      --danger: #ef4444;
+      --danger-dark: #dc2626;
+      --success: #10b981;
+      --success-dark: #0d9e6e;
+      --text: #1f2937;
+      --text-light: #6b7280;
+      --bg: #f9fafb;
+      --card-bg: #ffffff;
+      --border: #e5e7eb;
+    }
+    
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    header {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+    
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .subtitle {
+      color: var(--text-light);
+      font-size: 0.95rem;
+      margin: 0;
+    }
+    
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
+    button {
+      padding: 0.75rem 1.25rem;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    #start {
+      background: var(--success);
+      color: white;
+    }
+    
+    #start:hover:not(:disabled) {
+      background: var(--success-dark);
+    }
+    
+    #stop {
+      background: var(--danger);
+      color: white;
+    }
+    
+    #stop:hover:not(:disabled) {
+      background: var(--danger-dark);
+    }
+    
+    #status {
+      margin-left: 0.5rem;
+      color: var(--text-light);
+      font-size: 0.85rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 20px;
+    }
+    
+    .status-active {
+      color: var(--success-dark);
+      background: rgba(16, 185, 129, 0.1);
+    }
+    
+    .status-error {
+      color: var(--danger-dark);
+      background: rgba(239, 68, 68, 0.1);
+    }
+    
+    .info-text {
+      color: var(--text-light);
+      font-size: 0.85rem;
+      margin: 0.5rem 0;
+    }
+    
+    #transcript {
+      margin-top: 1rem;
+      padding: 1.5rem;
+      min-height: 200px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card-bg);
+      white-space: pre-wrap;
+      font-size: 1.05rem;
+      line-height: 1.6;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .transcript-placeholder {
+      color: var(--text-light);
+      font-style: italic;
+    }
+    
+    code {
+      background: rgba(0, 0, 0, 0.05);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'Menlo', monospace;
+      font-size: 0.85rem;
+    }
+    
+    .sr-info {
+      font-size: 0.8rem;
+      color: var(--text-light);
+      margin-top: 0.5rem;
+    }
+    
+    @media (max-width: 640px) {
+      .container {
+        padding: 1.25rem;
+      }
+      
+      h1 {
+        font-size: 1.5rem;
+      }
+      
+      .card {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 15C13.6569 15 15 13.6569 15 12V6C15 4.34315 13.6569 3 12 3C10.3431 3 9 4.34315 9 6V12C9 13.6569 10.3431 15 12 15Z" fill="#4361ee"/>
+          <path d="M18 12C18 15.3137 15.3137 18 12 18C8.68629 18 6 15.3137 6 12" stroke="#4361ee" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 19H13" stroke="#4361ee" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 19V21" stroke="#4361ee" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Live Transcription
+      </h1>
+      <p class="subtitle">Real-time speech-to-text using AssemblyAI v3</p>
+    </header>
+    
+    <div class="card">
+      <div class="controls">
+        <button id="start">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 15C13.6569 15 15 13.6569 15 12V6C15 4.34315 13.6569 3 12 3C10.3431 3 9 4.34315 9 6V12C9 13.6569 10.3431 15 12 15Z" fill="white"/>
+            <path d="M18 12C18 15.3137 15.3137 18 12 18C8.68629 18 6 15.3137 6 12" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Start Recording
+        </button>
+        <button id="stop" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="6" width="12" height="12" rx="1" fill="white"/>
+          </svg>
+          Stop
+        </button>
+        <span id="status">idle</span>
+      </div>
+      
+      <p class="info-text">AudioContext sample rate will be shown below for debugging.</p>
+      <div class="sr-info" id="sr"></div>
+    </div>
+    
+    <div class="card">
+      <h3>Transcript</h3>
+      <div id="transcript" class="transcript-placeholder">—</div>
+    </div>
+  </div>
+
+  <script>
+    // ===== CONFIG =====
+    const OUT_SAMPLE_RATE = 16000;          // AssemblyAI v3 expects 16kHz
+    const FRAME_SAMPLES = 800;              // 50ms at 16kHz
+    const FRAME_BYTES   = FRAME_SAMPLES * 2; // 16-bit PCM = 2 bytes
+
+    let audioCtx, sourceNode, procNode, mediaStream, ws;
+    let byteQueue = new Uint8Array(0);
+    let running = false;
+
+    const startBtn = document.getElementById('start');
+    const stopBtn  = document.getElementById('stop');
+    const statusEl = document.getElementById('status');
+    const srEl     = document.getElementById('sr');
+    const transcriptEl = document.getElementById('transcript');
+
+    function setStatus(t, isError = false) {
+      statusEl.textContent = t;
+      statusEl.className = isError ? 'status-error' : (running ? 'status-active' : '');
+    }
+
+    // Linear resample to 16k from input sample rate (usually 48k)
+    function resampleTo16k(float32, inRate) {
+      if (inRate === OUT_SAMPLE_RATE) return float32;
+      const ratio = inRate / OUT_SAMPLE_RATE;
+      const newLen = Math.round(float32.length / ratio);
+      const out = new Float32Array(newLen);
+      let pos = 0;
+      for (let i = 0; i < newLen; i++) {
+        const idx = i * ratio;
+        const idx0 = Math.floor(idx);
+        const idx1 = Math.min(idx0 + 1, float32.length - 1);
+        const frac = idx - idx0;
+        out[i] = float32[idx0] + (float32[idx1] - float32[idx0]) * frac;
+      }
+      return out;
+    }
+
+    function floatTo16PCM(float32) {
+      const out = new Int16Array(float32.length);
+      for (let i = 0; i < float32.length; i++) {
+        let s = Math.max(-1, Math.min(1, float32[i]));
+        out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return out;
+    }
+
+    function enqueueBytes(uint8) {
+      const merged = new Uint8Array(byteQueue.length + uint8.length);
+      merged.set(byteQueue, 0);
+      merged.set(uint8, byteQueue.length);
+      byteQueue = merged;
+
+      while (byteQueue.length >= FRAME_BYTES && ws && ws.readyState === WebSocket.OPEN) {
+        const chunk = byteQueue.slice(0, FRAME_BYTES);
+        ws.send(chunk.buffer);     // send as binary frame
+        byteQueue = byteQueue.slice(FRAME_BYTES);
+      }
+    }
+
+    async function start() {
+      if (running) return;
+      running = true;
+      transcriptEl.textContent = "—";
+      transcriptEl.classList.add('transcript-placeholder');
+      setStatus("preparing…");
+
+      // 1) websocket to backend
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${location.host}/ws/stream-v3`);
+      ws.onopen = () => setStatus("connected to server, opening mic…");
+      ws.onclose = () => setStatus("socket closed");
+      ws.onerror = () => setStatus("socket error", true);
+
+      ws.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          if (data.type === "Turn") {
+            transcriptEl.classList.remove('transcript-placeholder');
+            const txt = data.transcript || "";
+            const formatted = data.turn_is_formatted;
+            // Show the latest text (formatted turns are end-of-utterance)
+            if (formatted) {
+              transcriptEl.textContent += (transcriptEl.textContent === "—" ? "" : "\n") + txt;
+            } else {
+              // live partial: show on the last line
+              const lines = transcriptEl.textContent === "—" ? [] : transcriptEl.textContent.split("\n");
+              const base = lines.slice(0, -1).join("\n");
+              transcriptEl.textContent = (base ? base + "\n" : "") + txt;
+            }
+            // Auto-scroll to bottom
+            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+          } else if (data.type === "Begin") {
+            setStatus("session started");
+          } else if (data.type === "Termination") {
+            setStatus("session ended");
+          } else if (data.type === "error") {
+            setStatus("server: " + (data.message || "error"), true);
+          }
+        } catch {}
+      };
+
+      // 2) mic + resample to 16k PCM 16-bit mono
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            echoCancellation: true, 
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        srEl.textContent = `AudioContext sampleRate: ${audioCtx.sampleRate} Hz → resampling to ${OUT_SAMPLE_RATE} Hz`;
+
+        sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+        // ScriptProcessorNode is deprecated but widely supported; simplest for Day 17
+        const bufferSize = 4096;
+        procNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+        procNode.onaudioprocess = (e) => {
+          if (!running) return;
+          const inBuf = e.inputBuffer.getChannelData(0); // Float32Array
+          const resampled = resampleTo16k(inBuf, audioCtx.sampleRate);
+          const int16 = floatTo16PCM(resampled);
+          enqueueBytes(new Uint8Array(int16.buffer));
+        };
+
+        sourceNode.connect(procNode);
+        procNode.connect(audioCtx.destination); // required on some browsers
+        startBtn.disabled = true; 
+        stopBtn.disabled = false;
+        setStatus("recording… speak now");
+      } catch (err) {
+        setStatus("mic error: " + err.message, true);
+        running = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    }
+
+    function stop() {
+      running = false;
+      startBtn.disabled = false; 
+      stopBtn.disabled = true;
+      setStatus("stopped");
+
+      try { procNode && procNode.disconnect(); } catch {}
+      try { sourceNode && sourceNode.disconnect(); } catch {}
+      try { audioCtx && audioCtx.close(); } catch {}
+
+      if (mediaStream) {
+        for (const t of mediaStream.getTracks()) t.stop();
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try { ws.send(JSON.stringify({ type: "Terminate" })); } catch {}
+        ws.close();
+      }
+      byteQueue = new Uint8Array(0);
+    }
+
+    document.getElementById('start').addEventListener('click', start);
+    document.getElementById('stop').addEventListener('click', stop);
+  </script>
+</body>
+</html>

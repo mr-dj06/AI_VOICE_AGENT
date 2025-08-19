@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Agent Pro - Streaming Audio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .streaming-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .status {
+            padding: 16px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status.info {
+            background: rgba(59, 130, 246, 0.1);
+            color: #1d4ed8;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .status.success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #15803d;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status.recording {
+            background: rgba(245, 101, 101, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(245, 101, 101, 0.2);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .connection-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc2626;
+            transition: background-color 0.3s ease;
+        }
+
+        .connection-dot.connected {
+            background: #10b981;
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .audio-visualization {
+            height: 100px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .visualizer-bars {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 60px;
+        }
+
+        .bar {
+            width: 4px;
+            background: linear-gradient(to top, #667eea, #764ba2);
+            border-radius: 2px;
+            opacity: 0.3;
+            transition: all 0.2s ease;
+        }
+
+        .bar.active {
+            opacity: 1;
+            animation: bounce 0.6s ease-in-out infinite alternate;
+        }
+
+        @keyframes bounce {
+            from {
+                height: 20px;
+            }
+            to {
+                height: 60px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .title {
+                font-size: 2rem;
+            }
+            
+            .metrics {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">🎤 AI Voice Agent Pro</h1>
+            <p class="subtitle">Real-time Audio Streaming via WebSocket</p>
+        </div>
+
+        <div class="connection-indicator">
+            <div class="connection-dot" id="connectionDot"></div>
+            <span id="connectionStatus">Disconnected</span>
+        </div>
+
+        <div class="streaming-controls">
+            <button id="connectBtn" class="btn btn-primary">
+                🔌 Connect to Server
+            </button>
+            <button id="startStreamBtn" class="btn btn-primary" disabled>
+                🎙️ Start Streaming
+            </button>
+            <button id="stopStreamBtn" class="btn btn-danger" disabled>
+                ⏹️ Stop Streaming
+            </button>
+        </div>
+
+        <div id="status" class="status info">
+            Ready to connect to streaming server
+        </div>
+
+        <div class="audio-visualization" id="audioViz">
+            <div class="visualizer-bars" id="visualizerBars">
+                <!-- Bars will be generated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value" id="bytesCount">0</div>
+                <div class="metric-label">Bytes Sent</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="chunksCount">0</div>
+                <div class="metric-label">Chunks Sent</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="durationCount">0:00</div>
+                <div class="metric-label">Duration</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="qualityIndicator">-</div>
+                <div class="metric-label">Quality</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class StreamingAudioClient {
+            constructor() {
+                this.websocket = null;
+                this.mediaRecorder = null;
+                this.audioStream = null;
+                this.isRecording = false;
+                this.isConnected = false;
+                
+                // Metrics
+                this.bytesCount = 0;
+                this.chunksCount = 0;
+                this.startTime = null;
+                this.sessionId = null;
+
+                // DOM elements
+                this.connectBtn = document.getElementById('connectBtn');
+                this.startStreamBtn = document.getElementById('startStreamBtn');
+                this.stopStreamBtn = document.getElementById('stopStreamBtn');
+                this.status = document.getElementById('status');
+                this.connectionDot = document.getElementById('connectionDot');
+                this.connectionStatus = document.getElementById('connectionStatus');
+                
+                // Metric displays
+                this.bytesDisplay = document.getElementById('bytesCount');
+                this.chunksDisplay = document.getElementById('chunksCount');
+                this.durationDisplay = document.getElementById('durationCount');
+                this.qualityDisplay = document.getElementById('qualityIndicator');
+
+                this.initializeEventListeners();
+                this.initializeVisualizer();
+            }
+
+            initializeEventListeners() {
+                this.connectBtn.addEventListener('click', () => this.toggleConnection());
+                this.startStreamBtn.addEventListener('click', () => this.startStreaming());
+                this.stopStreamBtn.addEventListener('click', () => this.stopStreaming());
+            }
+
+            initializeVisualizer() {
+                const visualizerBars = document.getElementById('visualizerBars');
+                // Create 20 visualizer bars
+                for (let i = 0; i < 20; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    bar.style.height = '20px';
+                    visualizerBars.appendChild(bar);
+                }
+            }
+
+            async toggleConnection() {
+                if (this.isConnected) {
+                    this.disconnect();
+                } else {
+                    await this.connect();
+                }
+            }
+
+            async connect() {
+                try {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/ws/audio`;
+                    
+                    this.websocket = new WebSocket(wsUrl);
+                    this.updateStatus('Connecting to server...', 'info');
+
+                    this.websocket.onopen = () => {
+                        this.isConnected = true;
+                        this.updateConnectionStatus(true);
+                        this.updateStatus('✅ Connected to streaming server', 'success');
+                        this.connectBtn.textContent = '🔌 Disconnect';
+                        this.startStreamBtn.disabled = false;
+                    };
+
+                    this.websocket.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        this.handleServerMessage(data);
+                    };
+
+                    this.websocket.onclose = () => {
+                        this.isConnected = false;
+                        this.updateConnectionStatus(false);
+                        this.updateStatus('❌ Disconnected from server', 'error');
+                        this.connectBtn.textContent = '🔌 Connect to Server';
+                        this.startStreamBtn.disabled = true;
+                        this.stopStreamBtn.disabled = true;
+                        if (this.isRecording) {
+                            this.stopStreaming();
+                        }
+                    };
+
+                    this.websocket.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        this.updateStatus('❌ Connection error occurred', 'error');
+                    };
+
+                } catch (error) {
+                    console.error('Connection failed:', error);
+                    this.updateStatus('❌ Failed to connect to server', 'error');
+                }
+            }
+
+            disconnect() {
+                if (this.isRecording) {
+                    this.stopStreaming();
+                }
+                
+                if (this.websocket) {
+                    this.websocket.close();
+                    this.websocket = null;
+                }
+            }
+
+            async startStreaming() {
+                try {
+                    // Get user media with high quality settings
+                    this.audioStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            sampleRate: 44100,
+                            channelCount: 1
+                        }
+                    });
+
+                    // Create MediaRecorder with optimized settings
+                    const options = {
+                        mimeType: 'audio/webm;codecs=opus',
+                        audioBitsPerSecond: 128000
+                    };
+                    
+                    // Fallback if webm is not supported
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options.mimeType = 'audio/ogg;codecs=opus';
+                        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                            options.mimeType = 'audio/wav';
+                        }
+                    }
+
+                    this.mediaRecorder = new MediaRecorder(this.audioStream, options);
+
+                    // Handle data available - send chunks immediately
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0 && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                            // Convert blob to array buffer and send
+                            event.data.arrayBuffer().then(buffer => {
+                                this.websocket.send(buffer);
+                                this.chunksCount++;
+                                this.bytesCount += buffer.byteLength;
+                                this.updateMetrics();
+                            });
+                        }
+                    };
+
+                    // Start recording with frequent data events (every 100ms)
+                    this.mediaRecorder.start(100);
+                    this.isRecording = true;
+                    this.startTime = Date.now();
+
+                    // Update UI
+                    this.startStreamBtn.disabled = true;
+                    this.stopStreamBtn.disabled = false;
+                    this.connectBtn.disabled = true;
+                    this.updateStatus('🎙️ Streaming audio... Speak now!', 'recording');
+                    this.startVisualizer();
+                    this.startDurationCounter();
+                    this.updateQualityIndicator('Good');
+
+                } catch (error) {
+                    console.error('Failed to start streaming:', error);
+                    this.updateStatus('❌ Microphone access denied or error occurred', 'error');
+                }
+            }
+
+            stopStreaming() {
+                this.isRecording = false;
+
+                if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                    this.mediaRecorder.stop();
+                }
+
+                if (this.audioStream) {
+                    this.audioStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Update UI
+                this.startStreamBtn.disabled = false;
+                this.stopStreamBtn.disabled = true;
+                this.connectBtn.disabled = false;
+                this.updateStatus('⏹️ Streaming stopped', 'info');
+                this.stopVisualizer();
+                this.stopDurationCounter();
+            }
+
+            handleServerMessage(data) {
+                switch (data.type) {
+                    case 'session_started':
+                        this.sessionId = data.session_id;
+                        console.log(`Session started: ${data.session_id}`);
+                        console.log(`Audio will be saved as: ${data.filename}`);
+                        break;
+                    
+                    case 'chunk_received':
+                        // Server acknowledges chunk received
+                        console.log(`Server received chunk ${data.chunk_number}: ${data.chunk_size} bytes`);
+                        break;
+                    
+                    case 'session_ended':
+                        console.log(`Session ended: ${data.message}`);
+                        this.updateStatus(`✅ Recording saved: ${data.filename} (${this.formatBytes(data.total_bytes)})`, 'success');
+                        break;
+                    
+                    case 'error':
+                        console.error('Server error:', data.message);
+                        this.updateStatus(`❌ Server error: ${data.message}`, 'error');
+                        break;
+                }
+            }
+
+            updateStatus(message, type) {
+                this.status.textContent = message;
+                this.status.className = `status ${type}`;
+            }
+
+            updateConnectionStatus(connected) {
+                this.connectionDot.className = `connection-dot ${connected ? 'connected' : ''}`;
+                this.connectionStatus.textContent = connected ? 'Connected' : 'Disconnected';
+            }
+
+            updateMetrics() {
+                this.bytesDisplay.textContent = this.formatBytes(this.bytesCount);
+                this.chunksDisplay.textContent = this.chunksCount.toLocaleString();
+            }
+
+            startVisualizer() {
+                const bars = document.querySelectorAll('.bar');
+                this.visualizerInterval = setInterval(() => {
+                    if (this.isRecording) {
+                        bars.forEach((bar, index) => {
+                            const height = Math.random() * 40 + 20;
+                            const active = Math.random() > 0.3;
+                            bar.style.height = `${height}px`;
+                            bar.className = `bar ${active ? 'active' : ''}`;
+                        });
+                    }
+                }, 200);
+            }
+
+            stopVisualizer() {
+                if (this.visualizerInterval) {
+                    clearInterval(this.visualizerInterval);
+                }
+                const bars = document.querySelectorAll('.bar');
+                bars.forEach(bar => {
+                    bar.style.height = '20px';
+                    bar.className = 'bar';
+                });
+            }
+
+            startDurationCounter() {
+                this.durationInterval = setInterval(() => {
+                    if (this.startTime && this.isRecording) {
+                        const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                        const minutes = Math.floor(elapsed / 60);
+                        const seconds = elapsed % 60;
+                        this.durationDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    }
+                }, 1000);
+            }
+
+            stopDurationCounter() {
+                if (this.durationInterval) {
+                    clearInterval(this.durationInterval);
+                }
+            }
+
+            updateQualityIndicator(quality) {
+                this.qualityDisplay.textContent = quality;
+            }
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+        }
+
+        // Initialize the streaming client when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new StreamingAudioClient();
+        });
+    </script>
+</body>
+
+</html>
