@@ -14,6 +14,7 @@ import google.generativeai as genai
 from typing import Dict, List
 
 from services.tts_murf import generate_tts_with_murf # type: ignore
+from services.tts_murf_ws import stream_tts_with_murf_ws
 
 from fastapi import WebSocket, WebSocketDisconnect
 import uuid
@@ -69,6 +70,73 @@ app.add_middleware(
 # Serve Static Files
 static_path = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_path), name="static")
+
+# --- NEW: stream Gemini tokens helper ---
+async def stream_gemini_response(prompt: str, websocket: WebSocket) -> str:
+    """
+    Streams Gemini response tokens for the given prompt.
+    - Prints tokens to the server console
+    - Sends deltas to the client over the same websocket
+    - Returns the full accumulated text at the end
+    """
+    print("\n🤖 LLM (Gemini) streaming:")
+    full_parts = []
+    try:
+        # stream=True returns an iterator that yields chunks as they arrive
+        stream = gemini_model.generate_content(prompt, stream=True)
+
+        for chunk in stream:
+            delta = getattr(chunk, "text", "") or ""
+            if not delta:
+                continue
+            # 1) print to server console (Day 19 requirement)
+            print(delta, end="", flush=True)
+
+            # 2) also forward to client (UI doesn’t need to change; this is harmless)
+            try:
+                await websocket.send_text(json.dumps({
+                    "type": "llm_delta",
+                    "text": delta
+                }))
+            except Exception as send_err:
+                # if client closed, just keep printing to console
+                print(f"\n⚠️ Could not send llm_delta to client: {send_err}")
+
+            full_parts.append(delta)
+
+        print()  # newline after stream
+        full_text = "".join(full_parts).strip()
+
+        # NEW: Send the final accumulated text to Murf via WebSocket and print base64 audio # day 20
+        print("\n🎤 Sending LLM response to Murf for TTS (WebSocket)…")
+        try:
+            await stream_tts_with_murf_ws(full_text, websocket)
+        except Exception as murf_err:
+            print(f"❌ Murf WS TTS error: {murf_err}")
+
+        # final “done” signal to client (optional; won’t break UI)
+        try:
+            await websocket.send_text(json.dumps({
+                "type": "llm_done",
+                "full_text": full_text
+            }))
+        except:
+            pass
+
+        return full_text
+
+    except Exception as e:
+        print(f"\n❌ LLM streaming error: {e}")
+        try:
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "source": "llm",
+                "message": str(e)
+            }))
+        except:
+            pass
+        return ""
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -411,21 +479,52 @@ async def stream_v3(websocket: WebSocket):
                                     sid = payload.get("id")
                                     exp = payload.get("expires_at")
                                     print(f"\n🎬 Session Begin: id={sid} expires_at={exp}")
+                                # elif mtype == "Turn":
+                                #     txt = payload.get("transcript", "")
+                                #     formatted = payload.get("turn_is_formatted", False)
+                                #     if formatted:
+                                #         print(f"\n📝 {txt}")
+                                #     else:
+                                #         # live partial
+                                #         print(f"\r… {txt}", end="", flush=True)
                                 elif mtype == "Turn":
-                                    txt = payload.get("transcript", "")
+                                    txt = payload.get("transcript", "") or ""
                                     formatted = payload.get("turn_is_formatted", False)
+
                                     if formatted:
-                                        print(f"\n📝 {txt}")
+                                        # Final text for this turn (= user stopped talking)
+                                        print(f"\n📝 Final Turn: {txt}")
+                                        await websocket.send_text(json.dumps({
+                                            "type": "turn_end",
+                                            "final_transcript": txt
+                                        }))
+                                        # --- NEW: Day 19 step ---
+                                        # Stream LLM response based on the final transcript.
+                                        # This will:
+                                        #  - print tokens to server console (requirement)
+                                        #  - send deltas to client as {"type":"llm_delta","text": "..."} (optional)
+                                        #  - finally send {"type":"llm_done","full_text": "..."} (optional)
+                                        await stream_gemini_response(txt, websocket)
                                     else:
-                                        # live partial
+                                        # Live partial
                                         print(f"\r… {txt}", end="", flush=True)
+                                        await websocket.send_text(json.dumps({
+                                            "type": "partial",
+                                            "text": txt
+                                        }))
+
+                                    # also forward raw Turn (optional, debug)
+                                    await websocket.send_text(msg.data)
                                 elif mtype == "Termination":
                                     adur = payload.get("audio_duration_seconds", 0)
                                     sdur = payload.get("session_duration_seconds", 0)
                                     print(f"\n🏁 Terminated: audio={adur}s session={sdur}s")
 
-                                # forward JSON to browser UI
-                                await websocket.send_text(msg.data)
+                                    # forward JSON to browser UI
+                                    await websocket.send_text(msg.data)
+                                else:
+                                    # anything else from AAI, forward as-is
+                                    await websocket.send_text(msg.data)
 
                             elif msg.type == aiohttp.WSMsgType.ERROR:
                                 print("❌ AAI websocket error")
@@ -433,16 +532,19 @@ async def stream_v3(websocket: WebSocket):
                     except Exception as e:
                         print(f"❌ Error from AAI stream: {e}")
                         try:
-                            await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+                            if websocket.application_state.value == 1:
+                                await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
                         except:
                             pass
-                        await websocket.close()
+                        if websocket.application_state.value == 1:
+                            await websocket.close()
 
                 await asyncio.gather(forward_client_audio(), forward_aai_messages())
 
         except Exception as e:
             print(f"❌ Could not connect to AssemblyAI: {e}")
-            try:
-                await websocket.send_text(json.dumps({"type": "error", "message": "Failed to connect to AssemblyAI"}))
-            finally:
-                await websocket.close()
+            if websocket.application_state.value == 1:
+                try:
+                    await websocket.send_text(json.dumps({"type": "error", "message": "Failed to connect to AssemblyAI"}))
+                finally:
+                    await websocket.close()

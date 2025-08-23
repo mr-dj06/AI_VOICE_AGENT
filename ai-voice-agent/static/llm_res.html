@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Audio Streaming Client</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    #waveform {
+      width: 100%;
+      height: 150px;
+      background: #1f2937;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-6">
+
+  <div class="max-w-lg w-full bg-white shadow-lg rounded-lg p-6">
+    <h1 class="text-2xl font-bold text-center text-indigo-600 mb-6">Audio Streaming</h1>
+
+    <!-- Navigation -->
+    <div class="flex justify-center mb-6">
+      <a href="transcribe.html" class="text-blue-500 hover:underline">Go to Transcription Page</a>
+    </div>
+
+    <!-- Audio Control Buttons -->
+    <div class="flex justify-center space-x-4 mb-4">
+      <button id="startBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">Start Recording</button>
+      <button id="stopBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" disabled>Stop Recording</button>
+    </div>
+
+    <!-- Status -->
+    <div id="status" class="text-center text-gray-700 mb-4">Idle</div>
+
+    <!-- Audio Waveform -->
+    <canvas id="waveform"></canvas>
+  </div>
+
+  <script>
+    let ws;
+    let mediaRecorder;
+    let audioContext, analyser, source;
+    let animationId;
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const statusEl = document.getElementById('status');
+    const canvas = document.getElementById('waveform');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    // Draw waveform
+    function drawWaveform() {
+      const bufferLength = analyser.fftSize;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      function draw() {
+        animationId = requestAnimationFrame(draw);
+        analyser.getByteTimeDomainData(dataArray);
+        ctx.fillStyle = '#1f2937';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#22c55e';
+        ctx.beginPath();
+        const sliceWidth = canvas.width * 1.0 / bufferLength;
+        let x = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const v = dataArray[i] / 128.0;
+          const y = v * canvas.height / 2;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+          x += sliceWidth;
+        }
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+      }
+      draw();
+    }
+
+    async function startRecording() {
+      try {
+        ws = new WebSocket(`ws://${window.location.host}/ws/audio`);
+        ws.onopen = () => {
+          statusEl.textContent = "Connected. Recording...";
+        };
+        ws.onerror = (err) => {
+          console.error("WebSocket error:", err);
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+        // Setup audio context for visualization
+        audioContext = new AudioContext();
+        source = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+        drawWaveform();
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+            ws.send(event.data);
+          }
+        };
+
+        mediaRecorder.start(250); // Send audio chunks every 250ms
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      } catch (error) {
+        console.error("Error accessing microphone:", error);
+        statusEl.textContent = "Microphone access denied.";
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        if (ws) ws.close();
+        statusEl.textContent = "Recording stopped.";
+      }
+      if (animationId) cancelAnimationFrame(animationId);
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    startBtn.addEventListener('click', startRecording);
+    stopBtn.addEventListener('click', stopRecording);
+  </script>
+</body>
+</html>

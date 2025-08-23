@@ -284,6 +284,43 @@
       }
     }
 
+     function updatePartial(text) {
+    transcriptEl.classList.remove('transcript-placeholder');
+
+    // Update the last line with the live partial text
+    const current = transcriptEl.textContent.trim();
+    const lines = current && current !== '—' ? current.split("\n") : [];
+    const base = lines.slice(0, -1).join("\n");
+    const newText = (base ? base + "\n" : "") + text;
+    transcriptEl.textContent = newText || "—";
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  }
+
+    function commitFinal(finalText) {
+      transcriptEl.classList.remove('transcript-placeholder');
+
+      // If there was an in-progress partial on the last line, replace it with final;
+      // Otherwise append a new line.
+      const current = transcriptEl.textContent.trim();
+      if (!current || current === '—') {
+        transcriptEl.textContent = finalText;
+      } else {
+        const lines = current.split("\n");
+        // Replace last line with final
+        lines[lines.length - 1] = finalText;
+        transcriptEl.textContent = lines.join("\n");
+      }
+
+      // Visual cue: user stopped talking (turn ended)
+      setStatus("turn ended");
+      setTimeout(() => {
+        if (running) setStatus("recording… speak now");
+      }, 800);
+
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    }
+
+
     async function start() {
       if (running) return;
       running = true;
@@ -301,7 +338,7 @@
       ws.onmessage = (ev) => {
         try {
           const data = JSON.parse(ev.data);
-          if (data.type === "Turn") {
+          /*if (data.type === "Turn") {
             transcriptEl.classList.remove('transcript-placeholder');
             const txt = data.transcript || "";
             const formatted = data.turn_is_formatted;
@@ -316,8 +353,36 @@
             }
             // Auto-scroll to bottom
             transcriptEl.scrollTop = transcriptEl.scrollHeight;
-          } else if (data.type === "Begin") {
+          } */
+          if (data.type === "partial") {
+            // show live speech on the last line
+            transcriptEl.classList.remove('transcript-placeholder');
+            const lines = transcriptEl.textContent === "—" ? [] : transcriptEl.textContent.split("\n");
+            const base = lines.slice(0, -1).join("\n");
+            transcriptEl.textContent = (base ? base + "\n" : "") + (data.text || "");
+            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+          }
+
+          else if (data.type === "turn_end") {
+            // finalize the utterance (commit a new line)
+            transcriptEl.classList.remove('transcript-placeholder');
+            transcriptEl.textContent += (transcriptEl.textContent === "—" ? "" : "\n") + (data.final_transcript || "");
+            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+
+            setStatus("turn ended");
+            setTimeout(() => {
+              if (running) setStatus("recording… speak now");
+            }, 800);
+          }
+          else if (data.type === "Begin") {
             setStatus("session started");
+          }
+                  else if (data.type === "audio_chunk") {
+            // ✅ Log audio chunk (first 50 chars only)
+              console.log("✅ Audio chunk received:", data.chunk.substring(0, 50) + "...");
+          }
+          else if (data.type === "tts_done") {
+              console.log("🎉 All audio chunks received");
           } else if (data.type === "Termination") {
             setStatus("session ended");
           } else if (data.type === "error") {
