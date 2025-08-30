@@ -3,3 +3,8 @@ uvicorn
 python-dotenv
 requests
 google-generativeai
+aiohttp
+websockets
+jinja2
+pydantic
+typing-extensions
