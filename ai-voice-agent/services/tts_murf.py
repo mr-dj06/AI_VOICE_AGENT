@@ -22,7 +22,8 @@ def generate_tts_with_murf(text, voice_id=None):
         
         # Use a valid voice ID - default to a common one
         if not voice_id or (isinstance(voice_id, str) and voice_id.strip() == ""):
-            voice_id = "en-IN-aarav"
+            voice_id = "en-US-miles" # DAY24
+            # voice_id = "en-IN-aarav"
         
         # Clean the voice_id if it's a string
         if isinstance(voice_id, str):

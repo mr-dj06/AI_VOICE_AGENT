@@ -5,7 +5,7 @@ import time
 import requests
 import json
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form
+from fastapi import FastAPI, Request, HTTPException, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,14 +26,25 @@ import asyncio
 
 # Load ENV & Configure APIs
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ASSEMBLY_API_KEY = os.getenv("ASSEMBLY_API_KEY")
-MURF_API_KEY = os.getenv("MURF_API_KEY")
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# ASSEMBLY_API_KEY = os.getenv("ASSEMBLY_API_KEY")
+# MURF_API_KEY = os.getenv("MURF_API_KEY")
 
-if not GEMINI_API_KEY or not ASSEMBLY_API_KEY or not MURF_API_KEY:
+# if not GEMINI_API_KEY or not ASSEMBLY_API_KEY or not MURF_API_KEY:
+#     raise RuntimeError("❗ Missing one or more API keys in environment variables")
+
+# genai.configure(api_key=GEMINI_API_KEY)
+# gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+
+# DAY 27 Dynamic Api keys
+DEFAULT_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+DEFAULT_ASSEMBLY_API_KEY = os.getenv("ASSEMBLY_API_KEY")
+DEFAULT_MURF_API_KEY = os.getenv("MURF_API_KEY")
+
+if not DEFAULT_GEMINI_API_KEY or not DEFAULT_ASSEMBLY_API_KEY or not DEFAULT_MURF_API_KEY:
     raise RuntimeError("❗ Missing one or more API keys in environment variables")
 
-genai.configure(api_key=GEMINI_API_KEY)
+genai.configure(api_key=DEFAULT_GEMINI_API_KEY)
 gemini_model = genai.GenerativeModel("gemini-2.0-flash")
 
 # Chat history file
@@ -61,9 +72,14 @@ chat_history: Dict[str, List[dict]] = load_chat_history()
 
 # FastAPI App
 app = FastAPI(title="30-Days-of-AI-Voice-Agents – Day 16")
+# DAY 27 Dynamic API Keys
+app.state.GEMINI_API_KEY = DEFAULT_GEMINI_API_KEY
+app.state.ASSEMBLY_API_KEY = DEFAULT_ASSEMBLY_API_KEY
+app.state.MURF_API_KEY = DEFAULT_MURF_API_KEY
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -72,12 +88,206 @@ app.add_middleware(
 static_path = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
+# Day 27 Dynamic API Key allocation
+@app.post("/configure-api-keys")
+async def configure_api_keys(request: Request):
+    data = await request.json()
+    gemini = data.get("gemini")
+    assembly = data.get("assembly")
+    murf = data.get("murf")
+
+    # Update only the keys that are present
+    if gemini:
+        app.state.GEMINI_API_KEY = gemini
+        genai.configure(api_key=gemini)  # reconfigure Gemini immediately
+        print(f"GEMINI_API_KEY configured ✅\n{gemini}")
+
+    if assembly:
+        app.state.ASSEMBLY_API_KEY = assembly
+        print(f"ASSEMBLY_API_KEY configured ✅")
+
+    if murf:
+        app.state.MURF_API_KEY = murf
+        print(f"MURF_API_KEY configured ✅")
+
+    if not (gemini or assembly or murf):
+        raise HTTPException(status_code=400, detail="At least one API key must be provided")
+
+    # for all three api update
+    # if not gemini or not assembly or not murf:
+    #     raise HTTPException(status_code=400, detail="All API keys are required")
+
+    # # Store in app state
+    # app.state.GEMINI_API_KEY = gemini
+    # app.state.ASSEMBLY_API_KEY = assembly
+    # app.state.MURF_API_KEY = murf
+
+    # Reconfigure Gemini dynamically
+    # genai.configure(api_key=gemini)
+
+    return {"message": "API keys updated successfully"}
+
+# Day 25
+async def get_superhero_fun_fact(hero_name: str, websocket: WebSocket):
+    """
+    Finds and streams a fun fact about a specific superhero using Gemini with Google Search.
+    """
+    try:
+        # Define the system prompt for the fun fact skill.
+        system_prompt = f"""
+        You are a friendly and knowledgeable AI assistant. Your task is to provide a single, concise, and fun fact about the superhero "{hero_name}". The fact should be surprising or interesting. Do not include any personal commentary or conversational phrases. Just state the fact.
+        """
+        
+        # Define the user query for the search.
+        user_query = f"Provide a fun fact about the superhero {hero_name}."
+        
+        # Initialize the Gemini model without the tools argument.
+        # The tools parameter is passed directly to the generate_content call.
+        gemini_grounded_model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+        
+        # Make the API call with the system prompt and user query.
+        # The `tools` parameter is now correctly included here.
+        response = await asyncio.to_thread(
+            lambda: gemini_grounded_model.generate_content(
+                # The system instruction is now part of the user's content.
+                f"{system_prompt}\n{user_query}",
+                # tools=[{"google_search": {}}],  # <-- The tools parameter is still here.
+                stream=False
+            )
+        )
+        
+        fact_text = response.candidates[0].content.parts[0].text
+        
+        # Send the fun fact as a single block of text to the client.
+        await websocket.send_text(json.dumps({
+            "type": "llm_delta",
+            "text": fact_text
+        }))
+
+        # Signal LLM completion for this skill.
+        await websocket.send_text(json.dumps({
+            "type": "llm_done",
+            "full_text": fact_text
+        }))
+        
+        # Convert the fun fact to speech.
+        # This part of the code assumes you have a working `stream_tts_with_murf_ws` function.
+        await stream_tts_with_murf_ws(
+            text=fact_text,
+            websocket=websocket,
+            voice_id="en-US-miles",  # or your preferred voice
+            sample_rate=44100,
+            max_retries=2,
+            use_unique_context=True
+        )
+        
+        print(f"✅ Fun fact provided for {hero_name}.")
+
+    except Exception as e:
+        print(f"❌ Error getting fun fact: {e}")
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": "Sorry, I couldn't find a fun fact right now. My web-shooters must be jammed!"
+        }))
+
+# Day 26
+async def google_search(search_query: str, websocket: WebSocket):
+    """
+    Finds and streams a fun fact about a specific superhero using Gemini with Google Search.
+    """
+    print("hello from google search")
+    try:
+        # Define the system prompt for the fun fact skill.
+        system_prompt = f"""You are a helpful assistant. Your job:
+            1. Use the Google Search tool when needed.
+            2. Provide a single, concise, interesting fact about "{search_query}".
+            3. No jokes, no placeholders, no extra commentary.
+            Return only the fact.
+            """
+        
+        # Define the user query for the search.
+        user_query = f"Use Google search to find the most recent and relevant information about: '{search_query}'. Summarize the findings."
+        
+        # Initialize the Gemini model without the tools argument.
+        # The tools parameter is passed directly to the generate_content call.
+        gemini_grounded_model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+        
+        # Make the API call with the system prompt and user query.
+        # The `tools` parameter is now correctly included here.
+        response = await asyncio.to_thread(
+            lambda: gemini_grounded_model.generate_content(
+                # The system instruction is now part of the user's content.
+                f"{system_prompt}\n{user_query}",
+                # tools=[{"google_search": {}}],  # <-- The tools parameter is still here.
+                stream=False
+            )
+        )
+
+        
+        fact_text = response.candidates[0].content.parts[0].text
+        
+        # Send the fun fact as a single block of text to the client.
+        await websocket.send_text(json.dumps({
+            "type": "llm_delta",
+            "text": fact_text
+        }))
+
+        # Signal LLM completion for this skill.
+        await websocket.send_text(json.dumps({
+            "type": "llm_done",
+            "full_text": fact_text
+        }))
+        
+        # Convert the fun fact to speech.
+        # This part of the code assumes you have a working `stream_tts_with_murf_ws` function.
+        await stream_tts_with_murf_ws(
+            text=fact_text,
+            websocket=websocket,
+            voice_id="en-US-miles",  # or your preferred voice
+            sample_rate=44100,
+            max_retries=2,
+            use_unique_context=True
+        )
+        
+        print(f"✅ Result provided for {search_query} from GOOGLE: ")
+
+    except Exception as e:
+        print(f"❌ Error getting fun fact: {e}")
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": "Sorry, I couldn't find a fun fact right now. My web-shooters must be jammed!"
+        }))
+
+
 # --- NEW: stream Gemini tokens helper ---
 async def stream_gemini_response(text: str, websocket: WebSocket):
     """
     Stream Gemini response and then convert to speech with improved error handling
     """
     try:
+        # --- NEW SKILL-BASED LOGIC ---
+        # Check if the user is asking for a "fun fact about" a superhero. # Day 25
+        if "fun fact about" in text.lower():
+            print("not hello")
+            # Extract the superhero's name from the user's message.
+            hero_name = text.lower().split("fun fact about", 1)[1].strip().replace("?", "").replace("!", "")
+            if hero_name:
+                print(f"🔍 User requested a fun fact about: {hero_name}")
+                await get_superhero_fun_fact(hero_name, websocket)
+                return  # Exit the function after handling the skill.
+            
+        # Day 26 # Example: Detect if user wants a Google search
+        if "search for" in text.lower() or "google" in text.lower():
+            print("🔍 Google Search requested")
+            
+            # Extract search query after the keyword
+            search_query = text.lower().split("search for", 1)[1].strip().replace("?", "").replace("!", "")
+            
+            if search_query:
+                print(f"🔍 Performing Google Search for: {search_query}")
+                await google_search(search_query, websocket)
+                return  # Exit after handling
+
         # Check TTS session limit before starting LLM
         active_sessions = await get_active_session_count()
         if active_sessions >= 2:
@@ -151,261 +361,6 @@ async def root():
 
 FALLBACK_MESSAGE="I'm having trouble connecting right now."
 
-# Core LLM Endpoint (handles both text & audio)
-@app.post("/llm/query")
-async def query_llm(
-    text: str = Form(None),
-    file: UploadFile = File(None)
-):
-    """
-    Handles either:
-    1. Text input
-    2. Audio input (transcribed via AssemblyAI)
-    """
-    try:
-        # Case 1: If audio file is provided
-        if file is not None:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-                tmp.write(await file.read())
-                tmp_path = tmp.name
-
-            # Upload to AssemblyAI
-            try:
-                headers = {"authorization": ASSEMBLY_API_KEY}
-                upload_url = "https://api.assemblyai.com/v2/upload"
-                with open(tmp_path, "rb") as f:
-                    upload_resp = requests.post(upload_url, headers=headers, data=f)
-                audio_url = upload_resp.json()["upload_url"]
-            except Exception as e:
-                print("upload failed due to=> ", e)
-                return {"services": FALLBACK_MESSAGE}
-
-            # Start transcription
-            try:
-                transcript_url = "https://api.assemblyai.com/v2/transcript"
-                transcript_req = {"audio_url": audio_url}
-                transcript_resp = requests.post(transcript_url, json=transcript_req, headers=headers)
-                transcript_id = transcript_resp.json()["id"]
-            except Exception as e:
-                print("transcription failed due to=> ",e)
-                return {"services": FALLBACK_MESSAGE}
-
-            # Poll until complete
-            while True:
-                poll_resp = requests.get(f"{transcript_url}/{transcript_id}", headers=headers)
-                status = poll_resp.json()["status"]
-                if status == "completed":
-                    text = poll_resp.json()["text"]
-                    break
-                elif status == "error":
-                    raise HTTPException(status_code=500, detail="Transcription failed")
-                time.sleep(2)
-
-        if not text:
-            raise HTTPException(status_code=400, detail="No text or audio provided")
-
-        # Step 2: Send text to Gemini
-        try:
-            gemini_resp = gemini_model.generate_content(text)
-            ai_text = gemini_resp.text.strip()
-        except Exception as e:
-            print("error from gemini ai due to => ", e)
-            return {"services": FALLBACK_MESSAGE}
-
-        # Step 3: Send AI text to Murf for TTS
-        murf_audio_url = generate_tts_with_murf(ai_text)
-        return {
-            "transcribed_text": text if file else None,
-            "ai_text": ai_text,
-            "audio_url": murf_audio_url
-        }
-
-    except Exception as exc:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(exc))
-
-@app.post("/agent/chat/{session_id}")
-async def chat_with_history(
-    session_id: str,
-    text: str = Form(None),
-    file: UploadFile = File(None)
-):
-    """
-    Handles conversational chat with history using session_id.
-    1. Transcribe audio if provided
-    2. Fetch and append to chat history
-    3. Query LLM with combined history and new input
-    4. Store response in history
-    5. Return TTS audio
-    """
-    try:
-        # Initialize chat history for session if not exists
-        if session_id not in chat_history:
-            chat_history[session_id] = []
-
-        # Step 1: Transcribe audio if provided
-        if file is not None:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-                tmp.write(await file.read())
-                tmp_path = tmp.name
-
-            # Upload to AssemblyAI
-            headers = {"authorization": ASSEMBLY_API_KEY}
-            upload_url = "https://api.assemblyai.com/v2/upload"
-            with open(tmp_path, "rb") as f:
-                upload_resp = requests.post(upload_url, headers=headers, data=f)
-            audio_url = upload_resp.json()["upload_url"]
-
-            # Start transcription
-            transcript_url = "https://api.assemblyai.com/v2/transcript"
-            transcript_req = {"audio_url": audio_url}
-            transcript_resp = requests.post(transcript_url, json=transcript_req, headers=headers)
-            transcript_id = transcript_resp.json()["id"]
-
-            # Poll until complete
-            while True:
-                poll_resp = requests.get(f"{transcript_url}/{transcript_id}", headers=headers)
-                status = poll_resp.json()["status"]
-                if status == "completed":
-                    text = poll_resp.json()["text"]
-                    break
-                elif status == "error":
-                    raise HTTPException(status_code=500, detail="Transcription failed")
-                time.sleep(2)
-
-        if not text:
-            raise HTTPException(status_code=400, detail="No text or audio provided")
-
-        # Step 2: Fetch chat history and append new user message
-        history = chat_history[session_id]
-        history.append({"role": "user", "content": text})
-        save_chat_history(chat_history)
-
-        # Step 3: Combine history and new message for LLM
-        conversation = ""
-        for message in history:
-            role = "User" if message["role"] == "user" else "Assistant"
-            conversation += f"{role}: {message['content']}\n"
-        conversation += "Assistant: "
-
-        # Step 4: Query Gemini with conversation history
-        gemini_resp = gemini_model.generate_content(conversation)
-        ai_text = gemini_resp.text.strip()
-
-        # Step 5: Append assistant response to history
-        history.append({"role": "assistant", "content": ai_text})
-        save_chat_history(chat_history)
-
-        # Step 6: Generate TTS for assistant response
-        murf_audio_url = generate_tts_with_murf(ai_text)
-
-        return {
-            "transcribed_text": text if file else None,
-            "ai_text": ai_text,
-            "audio_url": murf_audio_url,
-            "session_id": session_id
-        }
-
-    except Exception as exc:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(exc))
-    
-@app.get("/agent/history/{session_id}")
-async def get_history(session_id: str):
-    return chat_history.get(session_id, [])
-
-# Enhanced WebSocket endpoint for streaming audio
-@app.websocket("/ws/audio")
-async def audio_streaming_endpoint(websocket: WebSocket):
-    """
-    WebSocket endpoint for streaming audio recording
-    1. Accepts WebSocket connection
-    2. Receives binary audio data chunks
-    3. Saves streaming audio to file
-    4. Handles connection lifecycle
-    """
-    await websocket.accept()
-    
-    # Generate unique session and file identifiers
-    session_id = str(uuid.uuid4())
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    audio_filename = f"streaming_audio_{timestamp}_{session_id[:8]}.wav"
-    audio_filepath = RECORDINGS_DIR / audio_filename
-    
-    print(f"🎙️ New audio streaming session started: {session_id}")
-    print(f"📁 Audio will be saved to: {audio_filepath}")
-    
-    # Send initial confirmation to client
-    await websocket.send_text(json.dumps({
-        "type": "session_started",
-        "session_id": session_id,
-        "filename": audio_filename,
-        "message": "Audio streaming session started"
-    }))
-    
-    audio_file = None
-    total_bytes_received = 0
-    chunk_count = 0
-    
-    try:
-        # Open file for binary writing
-        audio_file = open(audio_filepath, "wb")
-        
-        while True:
-            try:
-                # Receive binary audio data
-                audio_data = await websocket.receive_bytes()
-                chunk_count += 1
-                total_bytes_received += len(audio_data)
-                
-                # Write audio chunk to file
-                audio_file.write(audio_data)
-                audio_file.flush()  # Ensure data is written immediately
-                
-                print(f"📦 Chunk {chunk_count}: Received {len(audio_data)} bytes (Total: {total_bytes_received} bytes)")
-                
-                # Send acknowledgment back to client
-                await websocket.send_text(json.dumps({
-                    "type": "chunk_received",
-                    "chunk_number": chunk_count,
-                    "chunk_size": len(audio_data),
-                    "total_bytes": total_bytes_received
-                }))
-                
-            except WebSocketDisconnect:
-                print(f"🔌 Client disconnected from session {session_id}")
-                break
-            except Exception as e:
-                print(f"❌ Error processing audio chunk: {e}")
-                await websocket.send_text(json.dumps({
-                    "type": "error",
-                    "message": f"Error processing audio: {str(e)}"
-                }))
-                break
-                
-    except Exception as e:
-        print(f"❌ WebSocket connection error: {e}")
-    finally:
-        # Clean up resources
-        if audio_file:
-            audio_file.close()
-            print(f"💾 Audio file saved: {audio_filepath} ({total_bytes_received} bytes, {chunk_count} chunks)")
-        
-        # Send final summary to client (if connection still active)
-        try:
-            await websocket.send_text(json.dumps({
-                "type": "session_ended",
-                "session_id": session_id,
-                "filename": audio_filename,
-                "total_bytes": total_bytes_received,
-                "total_chunks": chunk_count,
-                "message": f"Recording saved successfully with {total_bytes_received} bytes"
-            }))
-        except:
-            pass  # Connection might already be closed
-        
-        print(f"🏁 Audio streaming session ended: {session_id}")
-
 # Original WebSocket endpoint (kept for compatibility)
 @app.websocket("/ws/stream-v3")
 async def stream_v3(websocket: WebSocket):
@@ -415,7 +370,8 @@ async def stream_v3(websocket: WebSocket):
     await websocket.accept()
     print("🔗 Continuous listening WebSocket established")
     
-    ASSEMBLY_API_KEY = os.getenv("ASSEMBLY_API_KEY")
+    # ASSEMBLY_API_KEY = os.getenv("ASSEMBLY_API_KEY")
+    ASSEMBLY_API_KEY = getattr(app.state, "ASSEMBLY_API_KEY") # DAY 27 - Dynamic Keys
     if not ASSEMBLY_API_KEY:
         await websocket.send_text(json.dumps({"type": "error", "message": "Missing ASSEMBLY_API_KEY"}))
         await websocket.close()
@@ -472,7 +428,7 @@ async def stream_v3(websocket: WebSocket):
             aai_url = "wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&format_turns=true"
             aai_ws = await session.ws_connect(
                 aai_url,
-                headers={"Authorization": ASSEMBLY_API_KEY},
+                headers={"Authorization": app.state.ASSEMBLY_API_KEY},
                 heartbeat=30,
                 timeout=30
             )
@@ -710,7 +666,8 @@ async def stream_v3(websocket: WebSocket):
     await websocket.accept()
     print("🔗 Continuous listening WebSocket established")
     
-    ASSEMBLY_API_KEY = os.getenv("ASSEMBLY_API_KEY")
+    # ASSEMBLY_API_KEY = os.getenv("ASSEMBLY_API_KEY")
+    ASSEMBLY_API_KEY = getattr(app.state, "ASSEMBLY_API_KEY") # DAY 27 - Dynamic API Keys
     if not ASSEMBLY_API_KEY:
         await websocket.send_text(json.dumps({"type": "error", "message": "Missing ASSEMBLY_API_KEY"}))
         await websocket.close()

@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider-Man Voice Agent - Your Friendly Neighborhood AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e40af 0%, #dc2626 50%, #1e40af 100%);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        /* Sidebar */
+        /* Menu Button */
+        #menuBtn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #1e40af;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 1000;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            z-index: 999;
+            height: 100%;
+            width: 0;
+            position: fixed;
+            top: 0;
+            right: 0;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+            transition: 0.3s;
+            padding-top: 60px;
+            box-shadow: -3px 0 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar.open {
+            width: 300px;
+            padding: 20px;
+        }
+
+        .sidebar h2 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        button.configure-btn {
+            width: 100%;
+            padding: 12px;
+            background: #1e40af;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        button.configure-btn:hover {
+            background: linear-gradient(135deg, #ef4444, #dc2626);;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        /* Spider-Man themed background animation */
+        .web-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.1;
+        }
+
+        .web-strand {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, #ffffff, transparent);
+            height: 1px;
+            animation: webFloat 8s infinite linear;
+        }
+
+        .web-strand:nth-child(1) {
+            top: 20%;
+            width: 200px;
+            animation-delay: 0s;
+            left: -200px;
+        }
+
+        .web-strand:nth-child(2) {
+            top: 60%;
+            width: 300px;
+            animation-delay: -2s;
+            left: -300px;
+        }
+
+        .web-strand:nth-child(3) {
+            top: 40%;
+            width: 250px;
+            animation-delay: -4s;
+            left: -250px;
+        }
+
+        @keyframes webFloat {
+            0% {
+                transform: translateX(0) rotate(0deg);
+            }
+
+            100% {
+                transform: translateX(calc(100vw + 300px)) rotate(360deg);
+            }
+        }
+
+        .spider-icon {
+            position: absolute;
+            font-size: 20px;
+            color: rgba(220, 38, 38, 0.3);
+            animation: spiderCrawl 15s infinite linear;
+        }
+
+        @keyframes spiderCrawl {
+            0% {
+                transform: translate(-50px, -50px) rotate(0deg);
+            }
+
+            25% {
+                transform: translate(calc(100vw + 50px), -50px) rotate(90deg);
+            }
+
+            50% {
+                transform: translate(calc(100vw + 50px), calc(100vh + 50px)) rotate(180deg);
+            }
+
+            75% {
+                transform: translate(-50px, calc(100vh + 50px)) rotate(270deg);
+            }
+
+            100% {
+                transform: translate(-50px, -50px) rotate(360deg);
+            }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border: 2px solid rgba(220, 38, 38, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #dc2626, #1e40af);
+        }
+
+        .main-card {
+            grid-column: 1;
+        }
+
+        .chat-card {
+            grid-column: 2;
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .chat-card {
+                display: block;
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #dc2626, #1e40af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .spider-logo {
+            font-size: 3rem;
+            filter: drop-shadow(0 4px 8px rgba(220, 38, 38, 0.3));
+        }
+
+        .subtitle {
+            font-size: 1.125rem;
+            color: #6b7280;
+            line-height: 1.6;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .input-section {
+            margin-bottom: 32px;
+        }
+
+        .text-input-group {
+            margin-bottom: 24px;
+        }
+
+        .textarea-wrapper {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        #prompt {
+            width: 100%;
+            min-height: 120px;
+            padding: 20px;
+            border: 2px solid rgba(220, 38, 38, 0.2);
+            border-radius: 16px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            transition: all 0.3s ease;
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        #prompt:focus {
+            outline: none;
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .toggle-wrapper {
+            margin-bottom: 16px;
+        }
+
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            color: #374151;
+            cursor: pointer;
+        }
+
+        .toggle-input {
+            width: 20px;
+            height: 20px;
+            accent-color: #dc2626;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            box-shadow: 0 8px 16px rgba(220, 38, 38, 0.3);
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(220, 38, 38, 0.4);
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn-record {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+            flex: 1;
+        }
+
+        .btn-record:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 8px 16px rgba(239, 68, 68, 0.3);
+            flex: 1;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn.loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            color: white;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status {
+            text-align: center;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+            background: rgba(248, 250, 252, 0.8);
+            border: 2px solid rgba(156, 163, 175, 0.3);
+            color: #6b7280;
+        }
+
+        .status.recording {
+            background: rgba(254, 243, 199, 0.8);
+            border-color: #f59e0b;
+            color: #92400e;
+            animation: pulse 2s infinite;
+        }
+
+        .status.connected {
+            background: rgba(236, 253, 245, 0.8);
+            border-color: #10b981;
+            color: #065f46;
+        }
+
+        .status.processing {
+            background: rgba(239, 246, 255, 0.8);
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+
+        .status.error {
+            background: rgba(254, 242, 242, 0.8);
+            border-color: #ef4444;
+            color: #dc2626;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .chat-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .chat-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #dc2626, #1e40af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .chat-subtitle {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .conversation {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 16px;
+            background: rgba(248, 250, 252, 0.5);
+            border-radius: 16px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(220, 38, 38, 0.1);
+        }
+
+        .conversation-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #9ca3af;
+        }
+
+        .conversation-empty-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .conversation-empty-text {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .conversation-empty-subtitle {
+            font-size: 0.875rem;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: messageSlide 0.3s ease-out;
+        }
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        .message.user .message-label {
+            color: #dc2626;
+        }
+
+        .message.assistant .message-label {
+            color: #1e40af;
+        }
+
+        .message-content {
+            padding: 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            border-left: 4px solid #dc2626;
+        }
+
+        .message.assistant .message-content {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            border-left: 4px solid #1e40af;
+        }
+
+        .audio-player-wrapper {
+            margin-top: 20px;
+        }
+
+        audio {
+            width: 100%;
+            border-radius: 12px;
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        .result-container {
+            display: none;
+            margin-top: 24px;
+        }
+
+        .result-container.show {
+            display: block;
+        }
+
+        @media (min-width: 768px) {
+            .result-container {
+                display: none !important;
+            }
+        }
+
+        /* Spider-Man themed streaming audio controls */
+        .streaming-audio-section {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(30, 64, 175, 0.1));
+            border: 2px solid rgba(220, 38, 38, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .streaming-audio-section.show {
+            display: block;
+        }
+
+        .streaming-title {
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .streaming-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .web-shooter-btn {
+            background: linear-gradient(135deg, #dc2626, #1e40af);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 16px rgba(220, 38, 38, 0.3);
+        }
+
+        .web-shooter-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 24px rgba(220, 38, 38, 0.4);
+        }
+
+        .streaming-info {
+            text-align: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .chunk-indicators {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .chunk-dot {
+            width: 8px;
+            height: 8px;
+            background: #dc2626;
+            border-radius: 50%;
+            animation: chunkPulse 0.6s ease-in;
+        }
+
+        @keyframes chunkPulse {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 767px) {
+            .container {
+                padding: 0 16px;
+            }
+
+            .card {
+                padding: 24px;
+            }
+
+            .title {
+                font-size: 2rem;
+            }
+
+            .voice-controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Spider-Man themed background elements -->
+    <div class="web-animation">
+        <div class="web-strand"></div>
+        <div class="web-strand"></div>
+        <div class="web-strand"></div>
+        <div class="spider-icon">🕷️</div>
+    </div>
+
+    <div class="container">
+        <div class="sidebarCon">
+            <button id="menuBtn">☰</button>
+
+            <div id="sidebar" class="sidebar">
+            <h2>Configure API Key</h2>
+            <div class="form-group">
+                <label for="apiSelect">Select API</label>
+                <select id="apiSelect">
+                    <option value="Select API Key" disabled>Select API Key</option>
+                    <option value="gemini">Gemini AI</option>
+                    <option value="assembly">AssemblyAI</option>
+                    <option value="murf">Murf</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="apiKeyInput">Enter API Key</label>
+                <input type="text" id="apiKeyInput" placeholder="Enter selected API key">
+            </div>
+            <button class="configure-btn" onclick="configureApiKey()">Configure API Key</button>
+            <div id="messageBox" class="message"></div>
+            </div>
+        </div>
+        <!-- Main Control Panel -->
+        <div class="card main-card">
+            <div class="header">
+                <h1 class="title">
+                    <!-- <span class="spider-logo">🕷️</span> -->
+                    🕷️SpideyAI
+                </h1>
+                <p class="subtitle">
+                    Your friendly neighborhood AI assistant!
+                    <!-- Chat with the web-slinging intelligence that helps keep the
+                    digital city safe. Ask anything and get responses faster than Spider-Man swings through Manhattan! -->
+                </p>
+            </div>
+
+            <div class="input-section">
+                <div class="text-input-group">
+                    <div class="textarea-wrapper">
+                        <textarea id="prompt"
+                            placeholder="Hey there, true believer! What's on your mind? Ask your friendly neighborhood AI anything! 🕸️"></textarea>
+                    </div>
+                    <div class="toggle-wrapper">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="autoRecordToggle" class="toggle-input" checked>
+                            Auto web-swing into recording mode
+                        </label>
+                    </div>
+                    <button id="sendBtn" class="btn btn-primary">
+                        <span>🕸️</span>
+                        Shoot Web Query
+                    </button>
+                </div>
+
+                <div class="voice-controls">
+                    <button id="startRecord" class="btn btn-record">
+                        🎤 Start Web-Talk
+                    </button>
+                    <button id="stopRecord" class="btn btn-stop" disabled>
+                        ⏹ Stop Recording
+                    </button>
+                </div>
+            </div>
+
+            <div id="status" class="status">👋 Spidey-senses are tingling! Ready to help, true believer!</div>
+
+            <!-- Streaming Audio Section -->
+            <div id="streamingAudioSection" class="streaming-audio-section">
+                <h3 class="streaming-title">🔊 Web-Slinger Audio Stream</h3>
+                <div class="streaming-controls">
+                    <button id="webShooterBtn" class="web-shooter-btn">▶️</button>
+                </div>
+                <div class="streaming-info">
+                    <div>Web chunks: <span id="chunkCount">0</span>
+                        <div id="chunkIndicators" class="chunk-indicators"></div>
+                    </div>
+                    <div>Spider-status: <span id="audioStatus">Ready to swing</span></div>
+                    <div>Time elapsed: <span id="currentTime">0:00</span></div>
+                </div>
+            </div>
+
+            <!-- Mobile Result Container -->
+            <div id="resultContainer" class="result-container">
+                <div id="conversation" class="conversation"></div>
+                <div class="audio-player-wrapper">
+                    <audio id="responseAudio" controls></audio>
+                </div>
+            </div>
+        </div>
+
+        <!-- Desktop Chat Display -->
+        <div class="card chat-card">
+            <div class="chat-header">
+                <h2 class="chat-title">💭 Web-Chat History</h2>
+                <p class="chat-subtitle">Your conversation with Spider-Sense AI</p>
+            </div>
+            <div id="conversationDesktop" class="conversation">
+                <div class="conversation-empty">
+                    <div class="conversation-empty-icon">🕷️</div>
+                    <div class="conversation-empty-text">Ready to swing into action!</div>
+                    <div class="conversation-empty-subtitle">Start chatting with your friendly neighborhood AI</div>
+                </div>
+            </div>
+            <div class="audio-player-wrapper">
+                <audio id="responseAudioDesktop" controls></audio>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DAY 27 - Dynamic API Keys Configure with sidebar
+        const menuBtn = document.getElementById("menuBtn");
+        const sidebar = document.getElementById("sidebar");
+
+        let isOpen=true;
+        menuBtn.addEventListener("click", () => {
+            sidebar.classList.toggle("open");
+            isOpen = !isOpen;
+            if (isOpen) {
+                menuBtn.textContent = "☰"; // Change back to hamburger icon
+            } else {
+                menuBtn.textContent = "✖"; // Change to X
+            }
+        });
+
+        async function configureApiKey() {
+        const selectedApi = document.getElementById("apiSelect").value;
+        const apiKey = document.getElementById("apiKeyInput").value.trim();
+        const messageBox = document.getElementById("messageBox");
+
+        if (!apiKey) {
+            messageBox.textContent = "Please enter an API key!";
+            messageBox.className = "message error";
+            return;
+        }
+
+        // Prepare payload
+        const payload = { gemini: null, assembly: null, murf: null };
+        payload[selectedApi] = apiKey;
+
+        try {
+            const response = await fetch("http://localhost:8000/configure-api-keys", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+            const data = await response.json();
+            messageBox.textContent = data.message;
+            messageBox.className = "message success";
+            } else {
+            const error = await response.json();
+            messageBox.textContent = error.detail || "Failed to configure key";
+            messageBox.className = "message error";
+            }
+        } catch (err) {
+            messageBox.textContent = "Error: " + err.message;
+            messageBox.className = "message error";
+        }
+        }
+
+        // Streaming Audio Player for Spider-Man theme
+        class SpiderAudioPlayer {
+            constructor() {
+                this.audioContext = null;
+                this.audioBuffer = null;
+                this.audioSource = null;
+                this.isPlaying = false;
+                this.chunks = [];
+                this.chunkCount = 0;
+                this.audioData = new Uint8Array(0);
+                this.sampleRate = 44100;
+                this.startTime = 0;
+                this.pausedAt = 0;
+                this.autoPlayed = false;
+
+                this.initializeAudioContext();
+                this.setupEventListeners();
+            }
+
+            async initializeAudioContext() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: this.sampleRate
+                    });
+                    console.log('🕷️ Spider-Audio initialized');
+                } catch (error) {
+                    console.error('❌ Spider-Audio failed:', error);
+                }
+            }
+
+            setupEventListeners() {
+                const webShooterBtn = document.getElementById('webShooterBtn');
+                webShooterBtn.addEventListener('click', () => {
+                    if (this.isPlaying) {
+                        this.pauseAudio();
+                    } else {
+                        this.playAudio();
+                    }
+                });
+            }
+
+            async addAudioChunk(base64Chunk) {
+                try {
+                    const binaryString = atob(base64Chunk);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+
+                    this.chunks.push(bytes);
+                    this.chunkCount++;
+
+                    this.updateChunkIndicator();
+
+                    const totalLength = this.chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+                    const merged = new Uint8Array(totalLength);
+                    let offset = 0;
+                    for (const chunk of this.chunks) {
+                        merged.set(chunk, offset);
+                        offset += chunk.length;
+                    }
+
+                    this.audioData = merged;
+
+                    if (this.chunkCount % 3 === 0 || this.chunkCount <= 3) {
+                        await this.decodeAudioData();
+                    }
+
+                    if (!this.isPlaying && this.audioBuffer && !this.autoPlayed) {
+                        this.autoPlayed = true;
+                        setTimeout(() => this.playAudio(), 300);
+                    }
+
+                } catch (error) {
+                    console.error('🕷️ Web-chunk error:', error);
+                }
+            }
+
+            async decodeAudioData() {
+                try {
+                    if (!this.audioContext || this.audioData.length < 1000) return;
+
+                    const audioDataCopy = this.audioData.slice();
+                    const audioBuffer = await this.audioContext.decodeAudioData(audioDataCopy.buffer);
+                    this.audioBuffer = audioBuffer;
+
+                    document.getElementById('audioStatus').textContent = 'Ready to web-sling';
+
+                } catch (error) {
+                    console.log('🕸️ Spider-sense still decoding...');
+                }
+            }
+
+            async playAudio() {
+                try {
+                    if (!this.audioContext || !this.audioBuffer) {
+                        document.getElementById('audioStatus').textContent = 'Web-spinning audio...';
+                        return;
+                    }
+
+                    if (this.audioContext.state === 'suspended') {
+                        await this.audioContext.resume();
+                    }
+
+                    if (this.audioSource) {
+                        this.audioSource.stop();
+                    }
+
+                    this.audioSource = this.audioContext.createBufferSource();
+                    this.audioSource.buffer = this.audioBuffer;
+                    this.audioSource.connect(this.audioContext.destination);
+
+                    this.audioSource.onended = () => {
+                        this.isPlaying = false;
+                        this.updatePlayButton();
+                        this.pausedAt = 0;
+                        document.getElementById('audioStatus').textContent = 'Web-swing complete';
+                    };
+
+                    this.startTime = this.audioContext.currentTime - this.pausedAt;
+                    this.audioSource.start(0, this.pausedAt);
+
+                    this.isPlaying = true;
+                    this.updatePlayButton();
+                    this.startTimeUpdater();
+
+                    document.getElementById('audioStatus').textContent = 'Web-swinging through audio';
+
+                } catch (error) {
+                    console.error('🕷️ Web-playback error:', error);
+                }
+            }
+
+            pauseAudio() {
+                if (this.audioSource && this.isPlaying) {
+                    this.audioSource.stop();
+                    this.pausedAt = this.audioContext.currentTime - this.startTime;
+                    this.isPlaying = false;
+                    this.updatePlayButton();
+                    document.getElementById('audioStatus').textContent = 'Paused web-swing';
+                }
+            }
+
+            updatePlayButton() {
+                const btn = document.getElementById('webShooterBtn');
+                btn.textContent = this.isPlaying ? '⏸️' : '▶️';
+            }
+
+            updateChunkIndicator() {
+                document.getElementById('chunkCount').textContent = this.chunkCount;
+
+                const indicator = document.createElement('div');
+                indicator.className = 'chunk-dot';
+                document.getElementById('chunkIndicators').appendChild(indicator);
+
+                const indicators = document.querySelectorAll('.chunk-dot');
+                if (indicators.length > 15) {
+                    indicators[0].remove();
+                }
+            }
+
+            startTimeUpdater() {
+                if (!this.isPlaying) return;
+
+                const updateTime = () => {
+                    if (this.isPlaying && this.audioBuffer) {
+                        const currentTime = this.audioContext.currentTime - this.startTime;
+                        const minutes = Math.floor(currentTime / 60);
+                        const seconds = Math.floor(currentTime % 60);
+                        document.getElementById('currentTime').textContent =
+                            `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                        if (currentTime < this.audioBuffer.duration) {
+                            requestAnimationFrame(updateTime);
+                        }
+                    }
+                };
+                updateTime();
+            }
+
+            reset() {
+                if (this.audioSource && this.isPlaying) {
+                    this.audioSource.stop();
+                }
+
+                this.chunks = [];
+                this.chunkCount = 0;
+                this.audioData = new Uint8Array(0);
+                this.audioBuffer = null;
+                this.isPlaying = false;
+                this.pausedAt = 0;
+                this.autoPlayed = false;
+
+                document.getElementById('chunkCount').textContent = '0';
+                document.getElementById('chunkIndicators').innerHTML = '';
+                document.getElementById('audioStatus').textContent = 'Ready to swing';
+                document.getElementById('currentTime').textContent = '0:00';
+                this.updatePlayButton();
+            }
+        }
+
+        // Main Application
+        document.addEventListener("DOMContentLoaded", () => {
+            const statusBox = document.getElementById("status");
+            const conversationBox = document.getElementById("conversation");
+            const conversationBoxDesktop = document.getElementById("conversationDesktop");
+            const audioPlayer = document.getElementById("responseAudio");
+            const audioPlayerDesktop = document.getElementById("responseAudioDesktop");
+            const resultContainer = document.getElementById("resultContainer");
+            const sendBtn = document.getElementById("sendBtn");
+            const promptTextarea = document.getElementById("prompt");
+            const startRecordBtn = document.getElementById("startRecord");
+            const stopRecordBtn = document.getElementById("stopRecord");
+            const autoRecordToggle = document.getElementById("autoRecordToggle");
+            const streamingAudioSection = document.getElementById("streamingAudioSection");
+
+            // Initialize Spider Audio Player
+            const spiderAudioPlayer = new SpiderAudioPlayer();
+
+            // WebSocket connection for streaming
+            let ws = null;
+            let mediaRecorder = null;
+            let isRecording = false;
+            let conversationHistory = [];
+
+            const isDesktop = () => window.innerWidth >= 768;
+
+            // Spider-Man themed status messages
+            const spiderMessages = {
+                ready: "🕷️ Spider-senses activated! Ready to help, true believer!",
+                listening: "🎤 Web-ears are open! Speak your mind!",
+                processing: "🕸️ Web-spinning your request...",
+                complete: "✅ Mission accomplished! Web-slinging complete!",
+                error: "⚡ Spider-sense detected an error! Let's try again!",
+                recording: "🎙️ Your friendly neighborhood AI is listening...",
+                connecting: "🕸️ Spinning web connection..."
+            };
+
+            function setStatus(msg, type = 'ready') {
+                statusBox.textContent = msg;
+                statusBox.className = `status ${type}`;
+            }
+
+            function getSessionId() {
+                const params = new URLSearchParams(window.location.search);
+                let sessionId = params.get("session_id");
+                if (!sessionId) {
+                    sessionId = Math.random().toString(36).substring(2, 15);
+                    params.set("session_id", sessionId);
+                    window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+                }
+                return sessionId;
+            }
+
+            const sessionId = getSessionId();
+
+            function updateConversationDisplay() {
+                const updateBox = (box) => {
+                    if (conversationHistory.length === 0) {
+                        box.innerHTML = `
+                            <div class="conversation-empty">
+                                <div class="conversation-empty-icon">🕷️</div>
+                                <div class="conversation-empty-text">Ready to swing into action!</div>
+                                <div class="conversation-empty-subtitle">Start chatting with your friendly neighborhood AI</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    box.innerHTML = '';
+                    conversationHistory.forEach(msg => {
+                        const div = document.createElement('div');
+                        div.className = `message ${msg.role}`;
+
+                        const label = document.createElement('div');
+                        label.className = 'message-label';
+                        label.textContent = msg.role === 'user' ? 'You' : 'Spider-Sense AI';
+
+                        const content = document.createElement('div');
+                        content.className = 'message-content';
+                        content.textContent = msg.content;
+
+                        div.appendChild(label);
+                        div.appendChild(content);
+                        box.appendChild(div);
+                    });
+                    box.scrollTop = box.scrollHeight;
+                };
+
+                updateBox(conversationBox);
+                updateBox(conversationBoxDesktop);
+            }
+
+            function setButtonLoading(button, loading) {
+                if (loading) {
+                    button.classList.add('loading');
+                    button.disabled = true;
+                } else {
+                    button.classList.remove('loading');
+                    button.disabled = false;
+                }
+            }
+
+            // WebSocket Connection for Streaming
+            function connectWebSocket() {
+                if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+                    return;
+                }
+
+                try {
+                    const wsUrl = `ws://localhost:8000/ws/stream-v3`;
+                    ws = new WebSocket(wsUrl);
+
+                    ws.onopen = () => {
+                        setStatus(spiderMessages.ready, 'connected');
+                        streamingAudioSection.classList.add('show');
+                    };
+
+                    ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+
+                            switch (data.type) {
+                                case 'ready':
+                                    setStatus(`🎤 Web-Chat #${data.conversation} - Listening for heroic requests!`, 'recording');
+                                    break;
+
+                                case 'partial':
+                                    setStatus(`🎤 "${data.text}"`, 'recording');
+                                    break;
+
+                                case 'turn_end':
+                                    conversationHistory.push({ role: "user", content: data.final_transcript });
+                                    updateConversationDisplay();
+                                    setStatus(spiderMessages.processing, 'processing');
+                                    break;
+
+                                case 'llm_delta':
+                                    // Find or create the last assistant message
+                                    let lastMsg = conversationHistory[conversationHistory.length - 1];
+                                    if (!lastMsg || lastMsg.role !== 'assistant') {
+                                        conversationHistory.push({ role: "assistant", content: data.text });
+                                    } else {
+                                        lastMsg.content += data.text;
+                                    }
+                                    updateConversationDisplay();
+                                    break;
+
+                                case 'llm_done':
+                                    setStatus('🔊 Web-slinging audio response...', 'processing');
+                                    spiderAudioPlayer.reset();
+                                    break;
+
+                                case 'audio_chunk':
+                                    spiderAudioPlayer.addAudioChunk(data.chunk);
+                                    break;
+
+                                case 'audio_complete':
+                                    setStatus(spiderMessages.ready, 'connected');
+                                    break;
+
+                                case 'tts_fallback':
+                                    setStatus('🗣️ Using Spider-Voice backup system...', 'processing');
+                                    break;// day 26 // refactored tts_fallback (it generates audio response even if I already got response from llm)
+                                    if ('speechSynthesis' in window) {
+                                        const utterance = new SpeechSynthesisUtterance(data.text);
+                                        utterance.rate = 1.0;
+                                        utterance.pitch = 1.0;
+                                        utterance.volume = 1.0;
+
+                                        utterance.onend = () => {
+                                            setStatus(spiderMessages.ready, 'connected');
+                                        };
+
+                                        speechSynthesis.cancel();
+                                        speechSynthesis.speak(utterance);
+                                    }
+                                    break;
+
+                                case 'error':
+                                    setStatus(`${spiderMessages.error} ${data.message}`, 'error');
+                                    break;
+                            }
+                        } catch (err) {
+                            // Raw audio data
+                        }
+                    };
+
+                    ws.onclose = () => {
+                        setStatus('🕸️ Web connection lost - Reconnecting...', 'error');
+                        setTimeout(() => connectWebSocket(), 2000);
+                    };
+
+                } catch (error) {
+                    setStatus(spiderMessages.error, 'error');
+                }
+            }
+
+            async function startStreamingRecording() {
+                try {
+                    if (!ws || ws.readyState !== WebSocket.OPEN) {
+                        await connectWebSocket();
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                    }
+
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            sampleRate: 16000,
+                            channelCount: 1,
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+
+                    const audioContext = new AudioContext({ sampleRate: 16000 });
+                    const source = audioContext.createMediaStreamSource(stream);
+                    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                    processor.onaudioprocess = (event) => {
+                        if (!isRecording) return;
+
+                        const inputData = event.inputBuffer.getChannelData(0);
+                        const outputData = new Int16Array(inputData.length);
+
+                        for (let i = 0; i < inputData.length; i++) {
+                            outputData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                        }
+
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(outputData.buffer);
+                        }
+                    };
+
+                    source.connect(processor);
+                    processor.connect(audioContext.destination);
+
+                    mediaRecorder = { stream, audioContext, source, processor };
+                    isRecording = true;
+
+                    setStatus(spiderMessages.listening, 'recording');
+                    startRecordBtn.textContent = '🔄 Reset Web-Chat';
+                    stopRecordBtn.disabled = false;
+                    streamingAudioSection.classList.add('show');
+
+                } catch (error) {
+                    setStatus(`${spiderMessages.error} ${error.message}`, 'error');
+                }
+            }
+
+            function stopStreamingRecording() {
+                if (mediaRecorder) {
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+
+                    try {
+                        mediaRecorder.source.disconnect();
+                        mediaRecorder.processor.disconnect();
+                        mediaRecorder.audioContext.close();
+                    } catch (e) {
+                        console.warn('Audio context cleanup error:', e);
+                    }
+
+                    mediaRecorder = null;
+                }
+
+                isRecording = false;
+                setStatus('⏸️ Web-recording paused', 'connected');
+                startRecordBtn.textContent = '🎤 Start Web-Talk';
+                stopRecordBtn.disabled = true;
+            }
+
+            // Regular recording for fallback API
+            async function sendQuery(text = null, audioBlob = null) {
+                setStatus(audioBlob ? spiderMessages.processing : spiderMessages.processing, 'processing');
+
+                if (!isDesktop()) {
+                    resultContainer.classList.add('show');
+                }
+
+                setButtonLoading(sendBtn, true);
+                startRecordBtn.disabled = true;
+                stopRecordBtn.disabled = true;
+
+                try {
+                    const formData = new FormData();
+                    if (text) {
+                        formData.append("text", text);
+                        conversationHistory.push({ role: "user", content: text });
+                        updateConversationDisplay();
+                    }
+                    if (audioBlob) {
+                        formData.append("file", audioBlob, "input.wav");
+                    }
+
+                    const resp = await fetch(`/agent/chat/${sessionId}`, {
+                        method: "POST",
+                        body: formData
+                    });
+                    const data = await resp.json();
+
+                    if (data.transcribed_text) {
+                        conversationHistory.push({ role: "user", content: data.transcribed_text });
+                    }
+                    conversationHistory.push({ role: "assistant", content: data.ai_text });
+                    updateConversationDisplay();
+
+                    audioPlayer.src = data.audio_url;
+                    audioPlayerDesktop.src = data.audio_url;
+
+                    if (isDesktop()) {
+                        audioPlayerDesktop.play();
+                    } else {
+                        audioPlayer.play();
+                    }
+
+                    setStatus(spiderMessages.complete, 'connected');
+                    promptTextarea.value = '';
+                } catch (error) {
+                    setStatus(`${spiderMessages.error} ${error.message}`, 'error');
+                } finally {
+                    setButtonLoading(sendBtn, false);
+                    startRecordBtn.disabled = false;
+                    stopRecordBtn.disabled = true;
+                }
+            }
+
+            const handleAudioEnd = () => {
+                if (autoRecordToggle.checked && !startRecordBtn.disabled) {
+                    setTimeout(() => {
+                        if (!isRecording) startStreamingRecording();
+                    }, 1000);
+                }
+            };
+
+            audioPlayer.addEventListener('ended', handleAudioEnd);
+            audioPlayerDesktop.addEventListener('ended', handleAudioEnd);
+
+            // Event Listeners
+            sendBtn.addEventListener("click", async () => {
+                const text = promptTextarea.value.trim();
+                if (!text) {
+                    setStatus("🕷️ Spider-sense says: Please type something first!", 'error');
+                    promptTextarea.focus();
+                    return;
+                }
+                await sendQuery(text);
+            });
+
+            let regularMediaRecorder, audioChunks = [];
+
+            startRecordBtn.addEventListener("click", async () => {
+                if (isRecording) {
+                    // Reset streaming session
+                    stopStreamingRecording();
+                    if (ws) ws.close(1000, 'User reset');
+                    setTimeout(() => startStreamingRecording(), 1000);
+                    return;
+                }
+
+                // Try streaming first, fallback to regular recording
+                try {
+                    await startStreamingRecording();
+                } catch (error) {
+                    // Fallback to regular recording
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                sampleRate: 44100
+                            }
+                        });
+                        regularMediaRecorder = new MediaRecorder(stream);
+                        audioChunks = [];
+
+                        regularMediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                        regularMediaRecorder.onstop = async () => {
+                            stream.getTracks().forEach(track => track.stop());
+                            const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+                            await sendQuery(null, audioBlob);
+                        };
+
+                        regularMediaRecorder.start();
+                        setStatus(spiderMessages.recording, 'recording');
+                        startRecordBtn.disabled = true;
+                        stopRecordBtn.disabled = false;
+                    } catch (fallbackError) {
+                        setStatus(`${spiderMessages.error} Microphone access denied`, 'error');
+                    }
+                }
+            });
+
+            stopRecordBtn.addEventListener("click", () => {
+                if (isRecording) {
+                    stopStreamingRecording();
+                } else if (regularMediaRecorder && regularMediaRecorder.state === "recording") {
+                    regularMediaRecorder.stop();
+                    setStatus(spiderMessages.processing, 'processing');
+                    startRecordBtn.disabled = false;
+                    stopRecordBtn.disabled = true;
+                }
+            });
+
+            promptTextarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendBtn.click();
+                }
+            });
+
+            promptTextarea.addEventListener('input', function () {
+                this.style.height = 'auto';
+                this.style.height = Math.max(120, this.scrollHeight) + 'px';
+            });
+
+            // Initialize
+            setStatus(spiderMessages.ready, 'ready');
+
+            // Try to connect WebSocket on load
+            setTimeout(() => {
+                connectWebSocket();
+            }, 1000);
+        });
+    </script>
+</body>
+
+</html>
