@@ -1,4 +1,4 @@
-# 🎙️ 30-Days-of-AI-Voice-Agents – Day 10  
+# 🎙️ 30-Days-of-AI-Voice-Agents   
 AI Voice Conversational Agent using **FastAPI**, **Gemini AI**, **AssemblyAI**, and **Murf TTS**  
 
 This project is part of the "30 Days of AI Voice Agents" challenge.  
