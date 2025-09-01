@@ -1,8 +1,9 @@
-# 🎙️ 30-Days-of-AI-Voice-Agents   
+# 🎙️ AI=Voice-Agent | 30-Days-of-AI-Voice-Agents
 AI Voice Conversational Agent using **FastAPI**, **Gemini AI**, **AssemblyAI**, and **Murf TTS**  
 
-This project is part of the "30 Days of AI Voice Agents" challenge.  
-It provides an API for **conversational AI** that can take **text or audio input**, transcribe audio to text, process it with Google’s Gemini LLM, and respond back with **text + generated voice** using Murf TTS.  
+## ✅ Overview
+This project is my final submission for the 30 Days of **AI Voice Agents Challenge**.
+It’s an AI-powered voice assistant capable of **real-time speech recognition**, **natural language understanding**, and **text-to-speech** responses, providing an interactive voice-based experience.
 It also includes **chat history persistence** for multi-turn conversations.
 
 ---
@@ -30,7 +31,9 @@ It also includes **chat history persistence** for multi-turn conversations.
 ```
 .
 ├── main.py                # FastAPI server
-├── tts_murf.py            # Murf TTS integration helper
+├── services/
+|   ├── tts_murf_ws.py     # Murf TTS helper with Websockets integration
+│   └── tts_murf.py        # Murf TTS integration helper
 ├── static/
 │   └── index.html         # Frontend UI
 ├── chat_history.json      # Chat history storage
